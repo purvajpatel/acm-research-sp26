@@ -4,6 +4,7 @@
 Download CLEVR v1.0 (18 GB)'.
 
 # 1. Language-Conditioned Graph Networks for Relational Reasoning
+[Paper](https://arxiv.org/abs/1905.04405)
 
 ## Overview
 Visual question answering (VQA) and referring expression comprehension (REF) are grounded comprehension tasks that require models to reason about entity relationships in the context of the task. Language-Conditioned Graph Networks (LCGN) are graphical frameworks that represent entities as nodes, which are described by context-aware representations, or edges, from related nodes using iterative message parsing.
