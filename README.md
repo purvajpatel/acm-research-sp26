@@ -1,3 +1,8 @@
+# Set-Up Instructions
+1. Install the required packages in requirements.txt. You can simply open the terminal and run 'pip install -r requirements.txt'
+2. Download the CLEVR dataset. My implementation expects all downloaded data folders to be in a directory called 'data'. That is, you should have data > CLEVR_v1.0. Download the CLEVR dataset: https://cs.stanford.edu/people/jcjohns/clevr/. Scroll down to 'Download' and click '
+Download CLEVR v1.0 (18 GB)'.
+
 # 1. Language-Conditioned Graph Networks for Relational Reasoning
 
 ## Overview
