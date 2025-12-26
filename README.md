@@ -3,3 +3,5 @@
 # Spring 2026 Paper Implementations
 
 Hello leads!, clone this repo, add your own branch (just name it your name) with all your files and read.me with your synopsis, and then publish your new branch. Let us know if any of y'all have access issues.
+
+Chosen paper: Model Merging via Multi-Teacher Knowledge Distillation
