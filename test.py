@@ -20,7 +20,7 @@ def test_image(test_input):
             # Generate content with both the image and text prompt
             # The model automatically handles multimodal inputs
             response = client.models.generate_content(
-                model='gemini-2.5-flash', # A powerful and fast multimodal model
+                model='gemini-3-flash-preview', # A powerful and fast multimodal model
                 contents=[img, prompt_text]
             )
             print(response.text)
