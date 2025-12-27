@@ -18,6 +18,8 @@ After pulling, first you will need several .bin files. I didn't push them to git
 
 Finally, you'll have to install a couple python libraries. To do this, you can just type in the terminal "pip install -r requirements.txt", and it should install. If it doesn't, then type in the terminal "pip install pandas torch numpy transformers".
 
+Now, just run "placeholderMain.py" in the MainCode folder, and you should start to see results!
+
 # Paper: Model Merging via Multi-Teacher Knowledge Distillation
 
 Model merging is a novel concept in the realm of Large Language Models and NLP, which involves merging several models fine tuned from the same base model for a specific task into a merged model that is able to successfully do all those tasks. The purpose of model merging is to reduce memory costs by reducing redundant weights between the tasks, and also reducing inference costs with a single unified model for all tasks.
