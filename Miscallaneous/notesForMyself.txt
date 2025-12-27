@@ -1,0 +1,8 @@
+Transfoers like the bert series typically have 2 parts: a backbone and a head.
+
+The backbone structure of each fine tuned version of the same base model is the same, but the head can be different.
+
+So, when merging you merge the backbone but kekep the heads the same. Since you backpropoagate from the head error for each task, this
+is fine.
+
+At inference, you explicitly choose the head corresponding to the task you're doing beforehand.
