@@ -1,0 +1,13 @@
+import pandas as pd
+
+df = pd.read_parquet("hf://datasets/nyu-mll/glue/ax/test-00000-of-00001.parquet")
+
+import pandas as pd
+
+splits = {'train': 'cola/train-00000-of-00001.parquet', 'validation': 'cola/validation-00000-of-00001.parquet', 'test': 'cola/test-00000-of-00001.parquet'}
+df = pd.read_parquet("hf://datasets/nyu-mll/glue/" + splits["train"])
+
+import pandas as pd
+
+splits = {'train': 'mnli/train-00000-of-00001.parquet', 'validation_matched': 'mnli/validation_matched-00000-of-00001.parquet', 'validation_mismatched': 'mnli/validation_mismatched-00000-of-00001.parquet', 'test_matched': 'mnli/test_matched-00000-of-00001.parquet', 'test_mismatched': 'mnli/test_mismatched-00000-of-00001.parquet'}
+df = pd.read_parquet("hf://datasets/nyu-mll/glue/" + splits["train"])
