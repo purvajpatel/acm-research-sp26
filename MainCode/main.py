@@ -104,11 +104,18 @@ class SAMerging:
         # Extract layer names and compute task vectors
         self.layer_names = self._get_layer_names()
         self.tau_t = self._compute_task_vectors()
+
+        # Initialize lambda coefficients
+        self._initialize_lambda_coeff()
+
         
     def _get_layer_names(self) -> List[str]:
-        """Extract all layer names from the base model."""
+        """Extract all layer names from the base model, excluding classifier."""
         layer_names = []
         for name, _ in self.theta0.named_parameters():
+            # Skip classifier layer since models have different num_labels
+            if 'classifier' in name:
+                continue
             # Get layer name (remove .weight or .bias suffix)
             layer_name = '.'.join(name.split('.')[:-1])
             if layer_name not in layer_names:
@@ -118,6 +125,7 @@ class SAMerging:
     def _compute_task_vectors(self) -> Dict[str, List[torch.Tensor]]:
         """
         Compute task vectors: τ_t = θ_t - θ_0
+        Skips the classifier layer since models may have different num_labels.
         Returns: {layer_name: [tau_t1, tau_t2, ...]}
         """
         tau_t = {layer: [] for layer in self.layer_names}
@@ -134,14 +142,59 @@ class SAMerging:
                 for param_name, param_t in param_dict_t.items():
                     if param_name.startswith(layer):
                         param_0 = param_dict_0[param_name]
-                        delta = (param_t - param_0).detach()
-                        layer_delta.append(delta)
+                        # Only include if shapes match
+                        if param_t.shape == param_0.shape:
+                            delta = (param_t - param_0).detach()
+                            layer_delta.append(delta)
                 
                 # Concatenate all parameter deltas for this layer
                 if layer_delta:
                     tau_t[layer].append(torch.cat([d.flatten() for d in layer_delta]))
         
         return tau_t
+    
+    def _create_dataloaders(self, calibration_datasets: Dict[str, Dict[str, pd.DataFrame]]) -> List[DataLoader]:
+        """
+        Create dataloaders from calibration datasets.
+        
+        Args:
+            calibration_datasets: Dict with structure {model_name: {data_type: dataframe}}
+        
+        Returns:
+            List of dataloaders, one per task
+        """
+        dataloaders = []
+        
+        # Sort models to ensure consistent ordering
+        models = sorted(calibration_datasets.keys())
+        
+        for model_name in models:
+            # Get calibration/validation data (prefer 'validation' over others)
+            if 'validation' in calibration_datasets[model_name]:
+                df_cal = calibration_datasets[model_name]['validation']
+            elif 'val' in calibration_datasets[model_name]:
+                df_cal = calibration_datasets[model_name]['val']
+            else:
+                # Fallback to first available split
+                df_cal = list(calibration_datasets[model_name].values())[0]
+            
+            # Create dataset and dataloader
+            dataset = TextDataset(df_cal, self.tokenizer, self.max_length)
+            dataloader = DataLoader(
+                dataset,
+                batch_size=self.batch_size,
+                shuffle=True
+            )
+            dataloaders.append(dataloader)
+        
+        return dataloaders
+    
+    def _initialize_lambda_coeff(self):
+        """Initialize lambda coefficients (one per task per layer)."""
+        self.lambda_coeff = {
+            layer: torch.ones(self.T, device=self.device, requires_grad=False) 
+            for layer in self.layer_names
+        }
     
     def construct_merged_model(self, lambda_coeff: Dict[str, torch.Tensor]) -> nn.Module:
         """
@@ -163,6 +216,10 @@ class SAMerging:
             
             # Merge task vectors
             for param_name in param_offsets:
+                # Check if parameter exists in merged model
+                if param_name not in param_dict_merged:
+                    continue
+                    
                 start, end = param_offsets[param_name]
                 shape = param_dict_0[param_name].shape
                 
@@ -199,14 +256,20 @@ class SAMerging:
                 
                 # Teacher model output
                 with torch.no_grad():
-                    logits_teacher = self.theta_t[t](**batch_device)
-                    if isinstance(logits_teacher, tuple):
-                        logits_teacher = logits_teacher[0]
+                    teacher_output = self.theta_t[t](**batch_device)
+                    # Extract logits from output object
+                    if isinstance(teacher_output, tuple):
+                        logits_teacher = teacher_output[0]
+                    else:
+                        logits_teacher = teacher_output.logits
                 
                 # Student model output
-                logits_student = theta_merge(**batch_device)
-                if isinstance(logits_student, tuple):
-                    logits_student = logits_student[0]
+                student_output = theta_merge(**batch_device)
+                # Extract logits from output object
+                if isinstance(student_output, tuple):
+                    logits_student = student_output[0]
+                else:
+                    logits_student = student_output.logits
                 
                 # Soft targets
                 p_t = F.softmax(logits_teacher / temperature, dim=-1)
@@ -298,8 +361,8 @@ class SAMerging:
     @staticmethod
     def _clone_model(model: nn.Module) -> nn.Module:
         """Create a deep copy of the model."""
-        return type(model)(**model.hparams) if hasattr(model, 'hparams') else \
-               nn.Module() if isinstance(model, nn.Module) else model
+        import copy
+        return copy.deepcopy(model)
     
     def evaluate_on_test_set(
         self,
@@ -379,36 +442,60 @@ class SAMerging:
 
 # Example usage
 if __name__ == "__main__":
-    from transformers import AutoTokenizer, AutoModelForSequenceClassification
+    from transformers import (
+        AutoTokenizer, 
+        BertConfig,
+        BertForSequenceClassification
+    )
+    
+    # Define paths to your local model directories (convert to forward slashes for cross-platform compatibility)
+    base_model_path = os.path.abspath("./StudentModel").replace("\\", "/")  # θ₀: pretrained base model
+    fine_tuned_model_paths = [
+        os.path.abspath("./TeacherModels/CoLA").replace("\\", "/"),      # θ₁: fine-tuned on CoLA
+        os.path.abspath("./TeacherModels/MNLI").replace("\\", "/"),      # θ₂: fine-tuned on MNLI
+        os.path.abspath("./TeacherModels/MRPC").replace("\\", "/"),      # θ₃: fine-tuned on MRPC
+        os.path.abspath("./TeacherModels/QNLI").replace("\\", "/"),      # θ₄: fine-tuned on QNLI
+        os.path.abspath("./TeacherModels/QQP").replace("\\", "/"),       # θ₅: fine-tuned on QQP
+        os.path.abspath("./TeacherModels/SST-2").replace("\\", "/")       # θ₆: fine-tuned on SST2
+    ]
+    
+    task_names = ["CoLA", "MNLI", "MRPC", "QNLI", "QQP", "SST-2"]
+    
+    # Load tokenizer from the base model directory
+    tokenizer = AutoTokenizer.from_pretrained(base_model_path, local_files_only=True, trust_remote_code=True)
+    
+# Load base model (θ₀) from local directory
+    config_path = os.path.join(base_model_path, "config.json")
+    config = BertConfig.from_json_file(config_path)
+    # Keep the num_labels from the saved config file
+    
+    model_weights_path = os.path.join(base_model_path, "pytorch_model.bin")
+    theta0 = BertForSequenceClassification(config)
+    state_dict = torch.load(model_weights_path, map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+    theta0.load_state_dict(state_dict, strict=False)
+    
+    # Load fine-tuned models (θ_t) from local directories
+    theta_t = []
+    num_labels_per_task = []  # Track num_labels for each task
+    
+    for model_path in fine_tuned_model_paths:
+        config_path = os.path.join(model_path, "config.json")
+        config = BertConfig.from_json_file(config_path)
+        # Keep the num_labels from the saved config file
+        
+        model_weights_path = os.path.join(model_path, "pytorch_model.bin")
+        model = BertForSequenceClassification(config)
+        state_dict = torch.load(model_weights_path, map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+        model.load_state_dict(state_dict, strict=False)
+        
+        theta_t.append(model)
+        num_labels_per_task.append(config.num_labels)
+
     from getDataset import getDataset
     
     # Load GLUE datasets
     dataset_dict = getDataset()
-    
-    # Define paths to your local model directories
-    base_model_path = os.path.abspath("./StudentModel")  # θ₀: pretrained base model
-    fine_tuned_model_paths = [
-        os.path.abspath("./TeachModels/CoLA"),      # θ₁: fine-tuned on CoLA
-        os.path.abspath("./TeachModels/MNLI"),      # θ₂: fine-tuned on MNLI
-        os.path.abspath("./TeachModels/MRPC"),      # θ₃: fine-tuned on MRPC
-        os.path.abspath("./TeachModels/QNLI"),      # θ₄: fine-tuned on QNLI
-        os.path.abspath("./TeachModels/QQP"),       # θ₅: fine-tuned on QQP
-        os.path.abspath("./TeachModels/SST2")       # θ₆: fine-tuned on SST2
-    ]
-    
-    task_names = ["CoLA", "MNLI", "MRPC", "QNLI", "QQP", "SST2"]
-    
-    # Load tokenizer from the base model directory
-    tokenizer = AutoTokenizer.from_pretrained(base_model_path, local_files_only=True)
-    
-    # Load base model (θ₀) from local directory
-    theta0 = AutoModelForSequenceClassification.from_pretrained(base_model_path, local_files_only=True)
-    
-    # Load fine-tuned models (θ_t) from local directories
-    theta_t = [
-        AutoModelForSequenceClassification.from_pretrained(model_path, local_files_only=True)
-        for model_path in fine_tuned_model_paths
-    ]
+
     
     # Initialize SAMerging
     samerging = SAMerging(
@@ -427,9 +514,11 @@ if __name__ == "__main__":
     print("=" * 60)
     print("Starting SAMerging Optimization...")
     print("=" * 60)
+
     optimal_lambda = samerging.optimize_lambda()
+    samerging.lambda_coeff = optimal_lambda  # Store the optimized coefficients
     merged_model = samerging.get_merged_model()
-    
+
     print("\n" + "=" * 60)
     print("SAMerging completed!")
     print("=" * 60)

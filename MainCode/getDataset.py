@@ -10,6 +10,7 @@ dfCollection = {}
 
 # loop through each model first
 for model in models:
+    dfCollection[model] = {}
     # then loop through each split type
     for i in range(len(dataTypes)):
         usedDataType = dataTypes[i]
@@ -30,8 +31,7 @@ for model in models:
         theDataset = theDataset.sample(n=samplesPerType[i], random_state = 42)
 
         # save it to the dictionary
-        dfCollection["model"] = {}
-        dfCollection["model"]["dataType"] = theDataset
+        dfCollection[model][dataTypes[i]] = theDataset
         print(f"The one with model {model} and the one with data type {dataTypes[i]} is done!")
 
 # helper function to get the dictionary
