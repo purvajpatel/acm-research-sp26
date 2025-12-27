@@ -348,8 +348,7 @@ class SAMerging:
                 # If gradient norm is too small, just do regular Adam step
                 optimizer.step()
             
-            if (epoch + 1) % 5 == 0:
-                print(f"Epoch {epoch + 1}/{self.num_epochs}, Loss: {loss.item():.4f}")
+            print(f"Epoch {epoch + 1}/{self.num_epochs}, Loss: {loss.item():.4f}")
         
         return self.merged_model.merge_weight.detach()
     
@@ -467,7 +466,7 @@ if __name__ == "__main__":
         tokenizer=tokenizer,
         rho=0.05,
         eta=0.01,
-        num_epochs=5,
+        num_epochs=10,
         batch_size=4,
         max_length=128
     )
