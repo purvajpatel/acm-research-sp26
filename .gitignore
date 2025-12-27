@@ -1,2 +1,3 @@
 /.history
 TeacherModels/*/pytorch_model.bin
+StudentModel/pytorch_model.bin
