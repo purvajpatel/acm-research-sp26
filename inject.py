@@ -271,9 +271,6 @@ def create_test_dataset(clean_dataset_path, output_path, config=None):
         }
 
     print("=" * 60)
-    print("Image Prompt Injection Dataset Generator")
-    print("Mimicking Brave's research on AI browser vulnerabilities")
-    print("=" * 60)
 
     results = batch_inject_images(
         input_dir=clean_dataset_path,
@@ -288,7 +285,7 @@ def create_test_dataset(clean_dataset_path, output_path, config=None):
 # Example usage
 if __name__ == "__main__":
     # Configuration
-    CLEAN_DATASET_PATH = "./phucthaiv02-butterfly-image-classification/dataset"  # Update this path
+    CLEAN_DATASET_PATH = "./phucthaiv02-butterfly-image-classification/dataset"
     OUTPUT_PATH = "./injected_dataset"
     os.makedirs(OUTPUT_PATH, exist_ok=True)
 
