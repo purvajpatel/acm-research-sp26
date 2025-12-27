@@ -11,3 +11,4 @@
 .vscode/
 
 **/dataset
+**/injected_dataset
