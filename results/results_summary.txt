@@ -1,0 +1,64 @@
+======================================================================
+HYPOGLYCEMIA DETECTION: SENSOR ABLATION STUDY RESULTS
+======================================================================
+
+Threshold: <70 mg/dL
+Model: Random Forest (100 trees, max_depth=10, class_weight='balanced')
+Dataset: BIG IDEAs Lab Glycemic Variability
+Validation: 80/20 train-test split
+
+----------------------------------------------------------------------
+RESULTS BY CONFIGURATION:
+----------------------------------------------------------------------
+
+
+CONFIG1_HR_ONLY:
+  Number of Features: 17
+  Accuracy:           0.976 (97.6%)
+  Precision:          0.095
+  Recall:             0.372
+  F1-Score:           0.151
+
+CONFIG2_HR_TEMP:
+  Number of Features: 24
+  Accuracy:           0.989 (98.9%)
+  Precision:          0.211
+  Recall:             0.372
+  F1-Score:           0.269
+
+CONFIG3_HR_EDA:
+  Number of Features: 27
+  Accuracy:           0.962 (96.2%)
+  Precision:          0.055
+  Recall:             0.349
+  F1-Score:           0.095
+
+CONFIG4_ALL_SENSORS:
+  Number of Features: 46
+  Accuracy:           0.981 (98.1%)
+  Precision:          0.144
+  Recall:             0.465
+  F1-Score:           0.220
+
+
+======================================================================
+BEST CONFIGURATION: CONFIG2_HR_TEMP
+======================================================================
+Accuracy: 98.9%
+Number of Features: 24
+
+
+KEY FINDINGS:
+----------------------------------------------------------------------
+1. Heart rate alone achieves 97.6% accuracy
+2. Adding all sensors improves accuracy by 0.5 percentage points
+3. Best configuration uses 24 features
+
+
+TOP 5 MOST IMPORTANT FEATURES:
+----------------------------------------------------------------------
+1. HbA1c: 0.1736
+2. Gender: 0.1536
+3. HR_Skew: 0.0489
+4. TEMP_Min: 0.0471
+5. TEMP_Mean: 0.0470
