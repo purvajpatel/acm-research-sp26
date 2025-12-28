@@ -22,6 +22,8 @@ Now, just run "placeholderMain.py" in the MainCode folder, and you should start 
 
 # Paper: Model Merging via Multi-Teacher Knowledge Distillation
 
+Link to the paper: https://arxiv.org/pdf/2512.21288
+
 Model merging is a novel concept in the realm of Large Language Models and NLP, which involves merging several models fine tuned from the same base model for a specific task into a merged model that is able to successfully do all those tasks. The purpose of model merging is to reduce memory costs by reducing redundant weights between the tasks, and also reducing inference costs with a single unified model for all tasks.
 
 # Method
@@ -38,16 +40,16 @@ Additionally, the algorithm uses Sharpness-Aware-Minimization in order to find m
 
 We can see that when running 6 tasks, I get the following results: 
 
-Task 'cola': Agreement Rate=0.5500, Runtime=4.61s
-Task 'mnli': Agreement Rate=0.4500, Runtime=4.05s
-Task 'mrpc': Agreement Rate=0.6500, Runtime=4.38s
-Task 'qnli': Agreement Rate=0.3500, Runtime=3.89s
-Task 'qqp': Agreement Rate=0.4000, Runtime=3.99s
-Task 'sst2': Agreement Rate=0.4500, Runtime=3.93s
+Task 'cola': Agreement Rate=0.5000, Runtime=4.25s
+Task 'mnli': Agreement Rate=0.6000, Runtime=4.55s
+Task 'mrpc': Agreement Rate=0.7000, Runtime=4.17s
+Task 'qnli': Agreement Rate=0.4000, Runtime=4.53s
+Task 'qqp': Agreement Rate=0.4000, Runtime=4.26s
+Task 'sst2': Agreement Rate=0.4500, Runtime=4.45s
 
-Average Agreement Rate across all tasks: 0.4750
+Average Agreement Rate across all tasks: 0.5083
 
-It doesn't seem like the model learns anything meaningful, although the model weights are changing. My implementation is likely not correct and there's probably an issue regarding actually updating the weights that I'd need to fix. It coudl also be an issue in terms of epochs, but the paper used fewer epochs and had decent results.
+It doesn't seem like the model learns much meaningful, although the model weights are changing. MRPC and MNLI did above average, but that could be because the testing size was so small, so through random guessing it ended up doing better. My implementation is likely not correct and there's probably an issue regarding actually updating the weights that I'd need to fix. It coudl also be an issue in terms of epochs, but the paper used fewer epochs and had decent results.
 
 In general for what would the advantages and disadvantages, The advantage of SAMerging is being about to build a merged model without requiring much data, and having it reduce overall memory and inference time withotu sacrificing too much accuracy.
 

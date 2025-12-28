@@ -278,6 +278,10 @@ class SAMerging:
         """
         Compute multi-teacher KL divergence loss.
         L_KD(λ) = Σ_t α_t E_{x∈B_t}[KL(p_t(·|x) ∥ q_λ(·|x))]
+        
+        FIXED: Now correctly computes KL(p_t || q_λ) where:
+        - p_t is the teacher/expert distribution
+        - q_λ is the student/merged model distribution
         """
         total_loss = 0.0
         models = sorted(self.calibration_datasets.keys())
@@ -310,11 +314,22 @@ class SAMerging:
             merged_logits = merged_logits[:, :num_classes]
             expert_logits = expert_logits[:, :num_classes]
             
-            # Compute KL(p_t ∥ q_λ) where p_t is teacher and q_λ is student
+            # FIXED: Compute KL(p_t ∥ q_λ) correctly
+            # Method 1: Using explicit formula
             p_teacher = F.softmax(expert_logits / self.temperature, dim=-1)
-            q_student = F.log_softmax(merged_logits / self.temperature, dim=-1)
+            q_student = F.softmax(merged_logits / self.temperature, dim=-1)
             
-            kl_loss = F.kl_div(q_student, p_teacher, reduction='batchmean')
+            # KL(p || q) = Σ p(x) * log(p(x) / q(x))
+            # Add small epsilon for numerical stability
+            eps = 1e-10
+            kl_loss = (p_teacher * (torch.log(p_teacher + eps) - torch.log(q_student + eps))).sum(dim=-1).mean()
+            
+            # Alternative Method 2: Using F.kl_div with log_target=True
+            # This is equivalent but uses PyTorch's optimized implementation
+            # log_p_teacher = F.log_softmax(expert_logits / self.temperature, dim=-1)
+            # log_q_student = F.log_softmax(merged_logits / self.temperature, dim=-1)
+            # kl_loss = F.kl_div(log_q_student, log_p_teacher, reduction='batchmean', log_target=True)
+            
             total_loss = total_loss + alpha * kl_loss
         
         return total_loss
