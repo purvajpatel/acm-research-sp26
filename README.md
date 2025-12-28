@@ -3,7 +3,7 @@
 # DVFS Temperature Control Reactive Improving 
 **Paper:** [Reactive DVFS Control for Multicore Processors](https://www.researchgate.net/publication/261265827_Reactive_DVFS_Control_for_Multicore_Processors)
 
-**Internal File:** Python & Ubuntuu
+**Internal File:** Python & Ubuntuu <br>
 **External File** C++ & Arduino
 
 ## Motivation
