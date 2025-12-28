@@ -45,14 +45,10 @@ class TextDataset(Dataset):
         }
 
 
-class BackboneMergedModel(nn.Module):
+class LayerWiseMergedModel(nn.Module):
     """
     Merges BERT backbones while keeping task-specific heads separate.
-    
-    Key idea:
-    - During optimization: apply weighted task vectors on-the-fly via temporary parameter modifications
-    - Each task keeps its own classification head
-    - After optimization: create final merged model with task vectors baked in
+    Uses functional_call approach to maintain gradient flow.
     """
     
     def __init__(
@@ -62,26 +58,44 @@ class BackboneMergedModel(nn.Module):
         device: str = "cuda" if torch.cuda.is_available() else "cpu"
     ):
         super().__init__()
-        self.base_model = base_model
-        self.finetuned_models = nn.ModuleList(finetuned_models)
         self.device = device
         self.num_tasks = len(finetuned_models)
         
         # Extract backbones and heads
-        self.backbone = self._extract_backbone(base_model)
+        self.pretrained_backbone = self._extract_backbone(base_model).requires_grad_(False)
         self.task_heads = nn.ModuleList([self._extract_head(model) for model in finetuned_models])
-        self.finetuned_backbones = nn.ModuleList([self._extract_backbone(model) for model in finetuned_models])
+        
+        # Compute task vectors (θ_t - θ_0) for each fine-tuned model
+        self.task_vectors = nn.ModuleList()
+        for ft_model in finetuned_models:
+            ft_backbone = self._extract_backbone(ft_model)
+            task_vector_model = copy.deepcopy(ft_backbone)
+            
+            # Compute task vectors: τ = θ_finetuned - θ_pretrained
+            for (name, ft_param), (_, base_param) in zip(
+                ft_backbone.named_parameters(), 
+                self.pretrained_backbone.named_parameters()
+            ):
+                # Get the corresponding parameter in task_vector_model
+                param_parts = name.split('.')
+                target_param = task_vector_model
+                for part in param_parts[:-1]:
+                    target_param = getattr(target_param, part)
+                
+                # Set the task vector
+                setattr(target_param, param_parts[-1], 
+                       nn.Parameter((ft_param - base_param).detach().requires_grad_(False)))
+            
+            self.task_vectors.append(task_vector_model.requires_grad_(False))
         
         # Count layers in backbone
-        self.num_layers = self._count_layers(self.backbone)
+        self.num_layers = self._count_layers(self.pretrained_backbone)
         
         # Layer-wise merge weights: (num_tasks, num_layers)
-        self.register_parameter('merge_weight', nn.Parameter(
-            torch.ones(self.num_tasks, self.num_layers, device=device) / self.num_tasks
-        ))
-        
-        # Compute task vectors for backbone only (not head)
-        self.task_vectors = self._compute_task_vectors()
+        init_value = 1.0 / self.num_tasks
+        self.merge_weight = nn.Parameter(
+            torch.full((self.num_tasks, self.num_layers), init_value, device=device)
+        )
     
     def _extract_backbone(self, model: nn.Module) -> nn.Module:
         """Extract the backbone (BERT encoder) from the model."""
@@ -112,129 +126,7 @@ class BackboneMergedModel(nn.Module):
         else:
             return 12
     
-    def _compute_task_vectors(self) -> List[Dict[str, torch.Tensor]]:
-        """Compute task vectors as: θ_t[backbone] - θ_0[backbone]"""
-        task_vectors = []
-        
-        base_backbone_params = dict(self.backbone.named_parameters())
-        
-        for ft_backbone in self.finetuned_backbones:
-            ft_backbone_params = dict(ft_backbone.named_parameters())
-            
-            task_vector_dict = {}
-            for param_name, base_param in base_backbone_params.items():
-                if param_name in ft_backbone_params:
-                    ft_param = ft_backbone_params[param_name]
-                    if base_param.shape == ft_param.shape:
-                        task_vector_dict[param_name] = (ft_param - base_param).detach()
-            
-            task_vectors.append(task_vector_dict)
-        
-        return task_vectors
-    
-    def _apply_task_vectors(self, merge_weight: torch.Tensor):
-        """Apply weighted task vectors to backbone parameters."""
-        base_params = dict(self.backbone.named_parameters())
-        
-        for param_name in base_params:
-            weighted_tv = None
-            
-            for task_idx in range(self.num_tasks):
-                if param_name in self.task_vectors[task_idx]:
-                    tv = self.task_vectors[task_idx][param_name].to(self.device)
-                    
-                    # Get layer index
-                    layer_idx = self._extract_layer_idx(param_name)
-                    if layer_idx is not None:
-                        weight = merge_weight[task_idx, layer_idx]
-                    else:
-                        weight = merge_weight[task_idx].mean()
-                    
-                    if weighted_tv is None:
-                        weighted_tv = weight * tv
-                    else:
-                        weighted_tv = weighted_tv + weight * tv
-            
-            # Apply to backbone (without no_grad to allow gradient flow)
-            if weighted_tv is not None:
-                base_params[param_name].data.add_(weighted_tv)
-    
-    def _unapply_task_vectors(self, merge_weight: torch.Tensor):
-        """Remove task vectors from backbone parameters."""
-        base_params = dict(self.backbone.named_parameters())
-        
-        for param_name in base_params:
-            weighted_tv = None
-            
-            for task_idx in range(self.num_tasks):
-                if param_name in self.task_vectors[task_idx]:
-                    tv = self.task_vectors[task_idx][param_name].to(self.device)
-                    
-                    layer_idx = self._extract_layer_idx(param_name)
-                    if layer_idx is not None:
-                        weight = merge_weight[task_idx, layer_idx]
-                    else:
-                        weight = merge_weight[task_idx].mean()
-                    
-                    if weighted_tv is None:
-                        weighted_tv = weight * tv
-                    else:
-                        weighted_tv = weighted_tv + weight * tv
-            
-            if weighted_tv is not None:
-                with torch.no_grad():
-                    base_params[param_name].data.sub_(weighted_tv)
-    
-    def forward(self, input_ids, attention_mask=None, token_type_ids=None, task_idx: int = 0):
-        """Forward pass with merged backbone (if merging is enabled)."""
-        backbone_output = self.backbone(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            token_type_ids=token_type_ids,
-            return_dict=True
-        )
-        
-        hidden_states = backbone_output.last_hidden_state
-        task_head = self.task_heads[task_idx]
-        logits = task_head(hidden_states[:, 0, :])
-        
-        from transformers.modeling_outputs import SequenceClassifierOutput
-        return SequenceClassifierOutput(logits=logits)
-    
-    def get_merged_backbone(self) -> nn.Module:
-        """Create final merged backbone with task vectors baked in."""
-        merged_backbone = copy.deepcopy(self.backbone)
-        
-        with torch.no_grad():
-            base_params = dict(self.backbone.named_parameters())
-            
-            for param_name, base_param in base_params.items():
-                weighted_tv = None
-                
-                for task_idx in range(self.num_tasks):
-                    if param_name in self.task_vectors[task_idx]:
-                        tv = self.task_vectors[task_idx][param_name].to(self.device)
-                        
-                        layer_idx = self._extract_layer_idx(param_name)
-                        if layer_idx is not None:
-                            weight = self.merge_weight[task_idx, layer_idx]
-                        else:
-                            weight = self.merge_weight[task_idx].mean()
-                        
-                        if weighted_tv is None:
-                            weighted_tv = weight * tv
-                        else:
-                            weighted_tv = weighted_tv + weight * tv
-                
-                if weighted_tv is not None:
-                    for name, param in merged_backbone.named_parameters():
-                        if name == param_name:
-                            param.data.add_(weighted_tv)
-                            break
-        
-        return merged_backbone
-    
-    def _extract_layer_idx(self, param_name: str) -> Optional[int]:
+    def _get_layer_index_for_param(self, param_name: str) -> Optional[int]:
         """Extract layer index from parameter name."""
         parts = param_name.split('.')
         for i, part in enumerate(parts):
@@ -249,15 +141,76 @@ class BackboneMergedModel(nn.Module):
                 except (ValueError, IndexError):
                     pass
         return None
+    
+    def merge_weights(self):
+        """
+        Merge task vectors with pretrained model to create merged state dict.
+        This is called before forward pass to update the merged parameters.
+        """
+        # Start with pretrained model's state dict
+        merged_state_dict = {
+            name: param.clone() 
+            for name, param in self.pretrained_backbone.named_parameters()
+        }
+        
+        # Add weighted task vectors
+        # merge_weight shape: (num_tasks, num_layers)
+        for task_idx in range(self.num_tasks):
+            task_vector = self.task_vectors[task_idx]
+            
+            layer_idx = 0
+            for name, tv_param in task_vector.named_parameters():
+                if name in merged_state_dict:
+                    # Get the weight for this task and layer
+                    param_layer_idx = self._get_layer_index_for_param(name)
+                    if param_layer_idx is not None:
+                        weight = self.merge_weight[task_idx, param_layer_idx]
+                    else:
+                        # For non-layer parameters, use mean weight
+                        weight = self.merge_weight[task_idx].mean()
+                    
+                    # Add weighted task vector
+                    merged_state_dict[name] = merged_state_dict[name] + weight * tv_param
+                    layer_idx += 1
+        
+        self._merged_state_dict = merged_state_dict
+        return merged_state_dict
+    
+    def forward(self, input_ids, attention_mask=None, token_type_ids=None, task_idx: int = 0):
+        """
+        Forward pass using functional_call with merged parameters.
+        """
+        from torch.func import functional_call
+        
+        # Use functional_call to forward with merged parameters
+        backbone_output = functional_call(
+            self.pretrained_backbone,
+            self._merged_state_dict,
+            args=(input_ids,),
+            kwargs={
+                'attention_mask': attention_mask,
+                'token_type_ids': token_type_ids,
+                'return_dict': True
+            }
+        )
+        
+        hidden_states = backbone_output.last_hidden_state
+        task_head = self.task_heads[task_idx]
+        logits = task_head(hidden_states[:, 0, :])
+        
+        from transformers.modeling_outputs import SequenceClassifierOutput
+        return SequenceClassifierOutput(logits=logits)
+    
+    def get_merged_backbone(self) -> nn.Module:
+        """Create final merged backbone with task vectors baked in."""
+        merged_backbone = copy.deepcopy(self.pretrained_backbone)
+        merged_backbone.load_state_dict(self._merged_state_dict)
+        return merged_backbone
 
 
 class SAMerging:
     """
     Sharpness-Aware Model Merging for multi-task BERT models.
-    
-    Implements the SAMerging algorithm with:
-    - Multi-teacher KL divergence loss
-    - Sharpness-Aware Minimization (SAM) optimization
     """
     
     def __init__(
@@ -288,7 +241,7 @@ class SAMerging:
         self.calibration_datasets = calibration_datasets
         
         # Create merged model
-        self.merged_model = BackboneMergedModel(theta0, theta_t, device).to(device)
+        self.merged_model = LayerWiseMergedModel(theta0, theta_t, device).to(device)
         
         # Create infinite batch iterators for each task
         self._setup_batch_iterators()
@@ -326,7 +279,7 @@ class SAMerging:
         Compute multi-teacher KL divergence loss.
         L_KD(λ) = Σ_t α_t E_{x∈B_t}[KL(p_t(·|x) ∥ q_λ(·|x))]
         """
-        total_loss = None
+        total_loss = 0.0
         models = sorted(self.calibration_datasets.keys())
         alpha = 1.0 / self.T
         
@@ -334,7 +287,7 @@ class SAMerging:
             batch = next(self.batch_iterators[model_name])
             batch_device = {k: v.to(self.device) for k, v in batch.items() if v is not None}
             
-            # Forward through merged backbone + task head
+            # Forward through merged model
             merged_output = self.merged_model(
                 input_ids=batch_device['input_ids'],
                 attention_mask=batch_device.get('attention_mask'),
@@ -361,83 +314,66 @@ class SAMerging:
             p_teacher = F.softmax(expert_logits / self.temperature, dim=-1)
             q_student = F.log_softmax(merged_logits / self.temperature, dim=-1)
             
-            # KL divergence: KL(p || q) = Σ p log(p/q) = Σ p log(p) - Σ p log(q)
-            # Using PyTorch's F.kl_div which computes KL(target || input)
-            # where input is log-probabilities and target is probabilities
             kl_loss = F.kl_div(q_student, p_teacher, reduction='batchmean')
-            
-            if total_loss is None:
-                total_loss = alpha * kl_loss
-            else:
-                total_loss = total_loss + alpha * kl_loss
+            total_loss = total_loss + alpha * kl_loss
         
         return total_loss
     
     def optimize_weights(self) -> torch.Tensor:
         """
         Optimize merge weights using Sharpness-Aware Minimization (SAM).
-        
-        SAM procedure:
-        1. Ascent step: find worst-case perturbation ε within neighborhood ρ
-        2. Descent step: compute gradient at perturbed point
-        3. Update: apply gradient update and remove perturbation
         """
         # Only optimize merge_weight parameter
         params_to_optimize = [self.merged_model.merge_weight]
         optimizer = torch.optim.Adam(params_to_optimize, lr=self.eta)
         
         for epoch in range(self.num_epochs):
-            optimizer.zero_grad()
+            # Merge weights before computing loss
+            self.merged_model.merge_weights()
             
             # ===== SAM Ascent Step =====
-            # Apply task vectors with current weights
-            self.merged_model._apply_task_vectors(self.merged_model.merge_weight)
-            
-            # Compute loss at current point
+            optimizer.zero_grad()
             loss = self.compute_kl_loss()
             loss.backward()
             
-            # Get gradient for normalization
-            if self.merged_model.merge_weight.grad is not None:
-                grad = self.merged_model.merge_weight.grad.clone()
-                grad_norm = torch.norm(grad) + 1e-12
-                
+            # Check if we have gradients
+            if self.merged_model.merge_weight.grad is None:
+                print(f"Warning: No gradient at epoch {epoch + 1}")
+                continue
+            
+            grad = self.merged_model.merge_weight.grad.clone()
+            grad_norm = torch.norm(grad)
+            
+            if grad_norm > 1e-12:
                 # Compute perturbation: ε = ρ * g / ||g||_2
                 epsilon = (self.rho / grad_norm) * grad
-                
-                # ===== SAM Descent Step =====
-                # Remove task vectors before perturbing weights
-                self.merged_model._unapply_task_vectors(self.merged_model.merge_weight)
                 
                 # Apply perturbation to weights
                 with torch.no_grad():
                     self.merged_model.merge_weight.data.add_(epsilon)
                 
-                # Reapply task vectors with perturbed weights
-                self.merged_model._apply_task_vectors(self.merged_model.merge_weight)
+                # Merge weights with perturbed weights
+                self.merged_model.merge_weights()
                 
-                # Compute loss at perturbed point
+                # ===== SAM Descent Step =====
                 optimizer.zero_grad()
                 loss_perturbed = self.compute_kl_loss()
                 loss_perturbed.backward()
                 
-                # Remove perturbation and task vectors (back to original point)
-                self.merged_model._unapply_task_vectors(self.merged_model.merge_weight)
+                # Remove perturbation
                 with torch.no_grad():
                     self.merged_model.merge_weight.data.sub_(epsilon)
                 
-                # Reapply task vectors for next iteration
-                self.merged_model._apply_task_vectors(self.merged_model.merge_weight)
+                # Update weights using gradient from perturbed point
+                optimizer.step()
             else:
-                loss_perturbed = loss
-            
-            # Update weights using gradient from perturbed point
-            optimizer.step()
+                # If gradient is too small, just do regular update
+                optimizer.step()
             
             # Log progress
-            grad_norm = self.merged_model.merge_weight.grad.norm().item() if self.merged_model.merge_weight.grad is not None else 0.0
+            grad_norm_current = self.merged_model.merge_weight.grad.norm().item() if self.merged_model.merge_weight.grad is not None else 0.0
             print(f"Epoch {epoch + 1}/{self.num_epochs}, Loss: {loss.item():.4f}, "
-                  f"Gradient norm: {grad_norm:.6f}, "
+                  f"Gradient norm: {grad_norm_current:.6f}, "
                   f"Weights - Min: {self.merged_model.merge_weight.min():.4f}, "
                   f"Max: {self.merged_model.merge_weight.max():.4f}, "
                   f"Mean: {self.merged_model.merge_weight.mean():.4f}")
@@ -446,6 +382,8 @@ class SAMerging:
     
     def get_merged_model(self) -> nn.Module:
         """Get final merged model with task vectors baked in."""
+        # Merge weights one final time
+        self.merged_model.merge_weights()
         merged_backbone = self.merged_model.get_merged_backbone()
         
         class FinalMergedModel(nn.Module):

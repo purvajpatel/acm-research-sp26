@@ -38,33 +38,16 @@ Additionally, the algorithm uses Sharpness-Aware-Minimization in order to find m
 
 We can see that when running 6 tasks, I get the following results: 
 
-cola:
-  Agreement Rate: 0.7000
-  Runtime:        6.7630s
-
-mnli:
-  Agreement Rate: 0.2500
-  Runtime:        6.4551s
-
-mrpc:
-  Agreement Rate: 0.8000
-  Runtime:        6.2624s
-
-qnli:
-  Agreement Rate: 0.4000
-  Runtime:        6.2290s
-
-qqp:
-  Agreement Rate: 0.4000
-  Runtime:        6.2403s
-
-sst2:
-  Agreement Rate: 0.3000
-  Runtime:        6.1433s
+Task 'cola': Agreement Rate=0.5500, Runtime=4.61s
+Task 'mnli': Agreement Rate=0.4500, Runtime=4.05s
+Task 'mrpc': Agreement Rate=0.6500, Runtime=4.38s
+Task 'qnli': Agreement Rate=0.3500, Runtime=3.89s
+Task 'qqp': Agreement Rate=0.4000, Runtime=3.99s
+Task 'sst2': Agreement Rate=0.4500, Runtime=3.93s
 
 Average Agreement Rate across all tasks: 0.4750
 
-It doesn't seem like the model learns anything meaningful, especially since the merge weights seem to be stuck at 0.1667. My implementation is likely not correct and there's probably an issue regarding actually updating the weights that I'd need to fix.
+It doesn't seem like the model learns anything meaningful, although the model weights are changing. My implementation is likely not correct and there's probably an issue regarding actually updating the weights that I'd need to fix. It coudl also be an issue in terms of epochs, but the paper used fewer epochs and had decent results.
 
 In general for what would the advantages and disadvantages, The advantage of SAMerging is being about to build a merged model without requiring much data, and having it reduce overall memory and inference time withotu sacrificing too much accuracy.
 
