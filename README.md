@@ -3,6 +3,9 @@
 # DVFS Temperature Control Reactive Improving 
 **Paper:** [Reactive DVFS Control for Multicore Processors](https://www.researchgate.net/publication/261265827_Reactive_DVFS_Control_for_Multicore_Processors)
 
+**Internal File:** Python & Ubuntuu
+**External File** C++ & Arduino
+
 ## Motivation
 
 In everyday computing, users often run multiple applications simultaneously—like playing video games while leaving a web browser open. Web browsers, especially with many tabs or extensions, can consume significant CPU resources even when idle or in the background. This unnecessary CPU usage can lead to thermal spikes, causing the CPU to throttle and the game to lag, creating a frustrating user experience.
@@ -16,7 +19,7 @@ This research focuses on improving CPU temperature management using Dynamic Volt
 The project will implement DVFS algorithms in C++ on Linux, with the possibility of using Gem5 for hardware simulation and algorithm testing. Python will be used to collect, analyze, and visualize the data, providing clear insights into CPU performance, power consumption, and temperature trends. 
 
 ## Advantage & Disadvantage
-- Advantage:
+**Advantage:**
 No extra hardware needed – uses built-in sensors on Ubuntuu (RAPL, sensors) to measure CPU energy and temperature.
 
 Reactive and real-time – can adjust CPU frequency on-the-fly based on actual workload, improving performance-per-watt.
@@ -25,7 +28,7 @@ Better thermal management – prevents CPU from overheating during unexpected hi
 
 Internal and External temperature - Most paper measure CPU temperature but ignore environment condition, therefore including external temperature can improve DVFS efficiency
 
-- Disadvantage
+**Disadvantage**
 Energy resolution limits – microjoule readings may not capture very small changes for short workloads accurately.
 
 Frequency switching overhead – changing CPU frequency too often can slightly reduce performance or create small lag spikes.
