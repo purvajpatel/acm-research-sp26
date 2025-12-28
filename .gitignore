@@ -1,0 +1,6 @@
+acm-research-sp26/.venv
+checkpoints/
+*.pt
+*.pth
+__pycache__/
+.DS_Store
