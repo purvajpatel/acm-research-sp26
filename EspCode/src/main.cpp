@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "esp_camera.h"
+#include "PrintFunctions.h"
 
 // the pinout doesn't have these
 #define PWDN_PIN    -1
@@ -26,9 +27,13 @@
 // when in loop we have this so when there's an error, we can stop looping
 bool gotError = false;
 
+bool isSendingImage = true;
+
 void setup() {
   // set timer of 10 seconds
   delay(10000);
+
+  setSendingImage(isSendingImage);
   
   // set serial
   Serial.begin(115200); 
@@ -66,6 +71,7 @@ void setup() {
 
     .jpeg_quality = 10,
 
+    // must be set to this so we don't read old frames
     .fb_count = 2,
 
     .fb_location = CAMERA_FB_IN_PSRAM,
@@ -83,12 +89,12 @@ void setup() {
   // if error, display it, otherwise say we gucci
   if (cameraError != ESP_OK) 
   {
-    Serial.printf("Camera init failed with error 0x%x\n", cameraError);
+    CustomPrintf("Camera init failed with error 0x%x\n", cameraError);
     gotError = true;
   }
   else
   {
-    Serial.println("Camera working!");
+    CustomPrintln("Camera working!");
   } 
 
 }
@@ -102,17 +108,25 @@ void loop() {
 
     if(theFrame == nullptr)
     {
-      Serial.println("Getting camera frame failed!");
+      CustomPrintln("Getting camera frame failed!");
     }
     else
     {
-      Serial.printf("Captured a camera frame with a length of %u bytes\n", theFrame->len);
+      CustomPrintf("Captured a camera frame with a length of %u bytes\n", theFrame->len);
 
       for(uint8_t i = 0; i < theFrame->width; i++)
       {
-        Serial.printf("%d ", theFrame->buf[i]);
+        CustomPrintf("%d ", theFrame->buf[i]);
       }
-      Serial.printf("\n\n");
+
+      if(CustomSerialReadForReadiness())
+      {
+        CustomWrite(theFrame->width);
+        CustomWrite(theFrame->height);
+        CustomWrite(theFrame->buf);
+      }
+
+      CustomPrintf("\n\n");
 
       // do this or else we'll use up all our memory in PSRAM
       esp_camera_fb_return(theFrame);
@@ -120,8 +134,8 @@ void loop() {
 
   }
   // put your main code here, to run repeatedly:
-  Serial.println("HELP IN GAIA");
+  CustomPrintln("HELP IN GAIA");
 
   // don't want to run the camera and print statement too many times, so run it every 2 secondss
-  delay(2500);
+  delay(1000);
 }
