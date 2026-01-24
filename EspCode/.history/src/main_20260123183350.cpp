@@ -123,5 +123,5 @@ void loop() {
   Serial.println("HELP IN GAIA");
 
   // don't want to run the camera and print statement too many times, so run it every 2 secondss
-  delay(2500);
+  delay(150);
 }

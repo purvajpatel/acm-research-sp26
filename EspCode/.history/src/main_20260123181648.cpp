@@ -66,7 +66,7 @@ void setup() {
 
     .jpeg_quality = 10,
 
-    .fb_count = 2,
+    .fb_count = 1,
 
     .fb_location = CAMERA_FB_IN_PSRAM,
 
@@ -123,5 +123,5 @@ void loop() {
   Serial.println("HELP IN GAIA");
 
   // don't want to run the camera and print statement too many times, so run it every 2 secondss
-  delay(2500);
+  delay(2000);
 }

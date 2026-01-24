@@ -70,7 +70,7 @@ void setup() {
 
     .fb_location = CAMERA_FB_IN_PSRAM,
 
-    .grab_mode = CAMERA_GRAB_LATEST
+    .grab_mode = CAMERA_GRAB_WHEN_EMPTY
   };
 
   // can't set these in the initial initialization of the struct, so must do it here
@@ -108,14 +108,6 @@ void loop() {
     {
       Serial.printf("Captured a camera frame with a length of %u bytes\n", theFrame->len);
 
-      for(uint8_t i = 0; i < theFrame->width; i++)
-      {
-        Serial.printf("%d ", theFrame->buf[i]);
-      }
-      Serial.printf("\n\n");
-
-      // do this or else we'll use up all our memory in PSRAM
-      esp_camera_fb_return(theFrame);
     }
 
   }
@@ -123,5 +115,5 @@ void loop() {
   Serial.println("HELP IN GAIA");
 
   // don't want to run the camera and print statement too many times, so run it every 2 secondss
-  delay(2500);
+  delay(2000);
 }
