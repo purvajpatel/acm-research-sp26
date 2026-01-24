@@ -1,0 +1,36 @@
+{
+  "model_type": "GAT_Quantum_Improved",
+  "training_time": 1590.4423971176147,
+  "best_epoch": 298,
+  "config": {
+    "hidden_channels": 96,
+    "num_heads": 4,
+    "num_layers": 2,
+    "dropout": 0.3,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0005
+  },
+  "performance": {
+    "train": {
+      "accuracy": 0.973978094351779,
+      "precision": 0.8043213633597078,
+      "recall": 0.9691969196919692,
+      "f1": 0.8790952935306835,
+      "roc_auc": 0.9955742510112342
+    },
+    "val": {
+      "accuracy": 0.9654246751852249,
+      "precision": 0.7710064635272391,
+      "recall": 0.9185918591859186,
+      "f1": 0.8383534136546185,
+      "roc_auc": 0.9876004616168423
+    },
+    "test": {
+      "accuracy": 0.9646730376892516,
+      "precision": 0.7690166975881262,
+      "recall": 0.911991199119912,
+      "f1": 0.8344237544036236,
+      "roc_auc": 0.9842075830619711
+    }
+  }
+}
