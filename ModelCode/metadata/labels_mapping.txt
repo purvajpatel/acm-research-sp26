@@ -1,0 +1,1 @@
+{"normal": 0, "box": 1, "cable": 2, "cones": 3, "debris": 4, "defects": 5, "door": 6, "floor": 7, "human": 8, "misc": 9, "tape": 10, "trolley": 11, "clutter": 12, "foam": 13, "sawdust": 14, "shard": 15, "cellophane": 16, "screws": 17, "water": 18, "obj. on robot": 19, "obj. on robot2": 20}
