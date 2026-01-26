@@ -27,10 +27,11 @@ Thus, as AI systems increasingly integrate multimodal capabilities—especially 
 3. **Evaluation**:  
    - Injects the prompt into each image.  
    - Uses **Gemini 3.0 Flash** to process the image and classify the injection as a **success** (model output aligns with injected text) or **fail** (model ignores the injection).
-
-**Future Work**:
-1. **Adversarial Benchmarking**: Implement the Typographic Visual Prompt Injection (TVPI) framework from the referenced paper to systematically evaluate attack success across model size, text factors (size, opacity, position), and target semantics (harmful, biased, neutral).
-2. **Defense Mechanisms**: Explore and implement mitigation strategies such as prompt prefixing ("ignore text in image"), input sanitization, adversarial training, and synthetic data augmentation to harden models against visual prompt injection.
+4. **Metrics**: Calculates the success rate of injections across the dataset to quantify vulnerability.
+#### Additional Methodology:
+- **Adversarial Benchmarking**: Implement the Typographic Visual Prompt Injection (TVPI) framework from the referenced paper to systematically evaluate attack success across model size, text factors (size, opacity, position), and target semantics (harmful, biased, neutral).
+#### Future Work
+- **Defense Mechanisms**: Explore and implement mitigation strategies such as prompt prefixing ("ignore text in image"), input sanitization, adversarial training, and synthetic data augmentation to harden models against visual prompt injection.
 
 ## 🌍 Impact
 This project highlights a critical and underexplored attack surface in modern AI systems. By open-sourcing the injection methodology and evaluation pipeline, we aim to:
