@@ -1,0 +1,56 @@
+{
+  "IP-Adapter-SD1.5": {
+    "photographic": {
+      "clip_scores": {},
+      "fid_scores": {},
+      "by_target_type": {
+        "harmful": {
+          "clip_score": 0.0,
+          "fid_score": 0.0,
+          "count": 1280
+        },
+        "bias": {
+          "clip_score": 0.0,
+          "fid_score": 0.0,
+          "count": 640
+        },
+        "neutral": {
+          "clip_score": 0.0,
+          "fid_score": 0.0,
+          "count": 640
+        },
+        "protective": {
+          "clip_score": 0.0,
+          "fid_score": 0.0,
+          "count": 640
+        }
+      }
+    },
+    "pose": {
+      "clip_scores": {},
+      "fid_scores": {},
+      "by_target_type": {
+        "harmful": {
+          "clip_score": 0.0,
+          "fid_score": 0.0,
+          "count": 1280
+        },
+        "bias": {
+          "clip_score": 0.0,
+          "fid_score": 0.0,
+          "count": 640
+        },
+        "neutral": {
+          "clip_score": 0.0,
+          "fid_score": 0.0,
+          "count": 640
+        },
+        "protective": {
+          "clip_score": 0.0,
+          "fid_score": 0.0,
+          "count": 640
+        }
+      }
+    }
+  }
+}
