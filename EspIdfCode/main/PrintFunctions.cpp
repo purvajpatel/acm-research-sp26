@@ -26,7 +26,7 @@ void CustomPrintln(const char* data)
   }
 }
 
-void CustomPrintfNum(const char* beginningString, int theNumber)
+void CustomPrintf(const char* beginningString, int theNumber)
 {
   if(!sendingImage)
   {
@@ -57,29 +57,28 @@ bool CustomSerialReadForReadiness()
   return false;
 }
 
-void CustomWriteSizeT(size_t number)
+void CustomWrite(size_t number)
 {
-    if(sendingImage)
+    uint8_t convertedToOneByteNum = (uint8_t) number;
+    uart_write_bytes(UART_NUM_0, (const char *)&convertedToOneByteNum, 1);
+  
+    // Serial.write((uint8_t) number);
+    if(width == 0)
     {
-      uint8_t convertedToOneByteNum = (uint8_t) number;
-      uart_write_bytes(UART_NUM_0, (const char *)&convertedToOneByteNum, 1);
-    
-      // Serial.write((uint8_t) number);
-      if(width == 0)
-      {
-        width = number;
-      }
-      else if (height == 0)
-      {
-        height = number;
-      }
+      width = number;
+    }
+    else if (height == 0)
+    {
+      height = number;
     }
 }
 
 void CustomWrite(uint8_t* buf)
 {
-    if(sendingImage)
-    {
-        uart_write_bytes(UART_NUM_0, (const char*) buf, width * height);
-    }
+    uart_write_bytes(UART_NUM_0, (const char*) buf, width * height);
+}
+
+void CustomWrite(int8_t number)
+{
+    uart_write_bytes(UART_NUM_0, (const char *)&number, 1);
 }

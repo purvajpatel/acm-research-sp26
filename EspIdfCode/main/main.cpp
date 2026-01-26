@@ -16,6 +16,11 @@
 #include "PrintFunctions.h"
 #include "driver/uart.h"
 
+#include "tensorflow/lite/micro/micro_mutable_op_resolver.h"
+#include "tensorflow/lite/micro/micro_interpreter.h"
+#include "tensorflow/lite/micro/system_setup.h"
+#include "tensorflow/lite/schema/schema_generated.h"
+
 // the pinout doesn't have these
 #define PWDN_PIN    -1
 #define RESET_PIN   -1
@@ -45,8 +50,18 @@ bool isSendingImage = true;
 
 int BUFFER_SIZE = 10000;
 
-void app_main(void)
+// saying extern on these lets us know that we should find them in another file
+extern const unsigned int8_t modelWeights[];
+extern const unsigned int modelLen;
+
+
+extern "C" void app_main(void)
 {
+    tflite::Model* model = tflite::GetModel(modelWeights);
+
+    
+    
+    
     setSendingImage(isSendingImage);
 
     // set up uart communication
@@ -120,13 +135,15 @@ void app_main(void)
     // if error, display it, otherwise say we gucci
     if (cameraError != ESP_OK) 
     {
-        CustomPrintfNum("Camera init failed with error 0x%x\n", cameraError);
+        CustomPrintf("Camera init failed with error 0x%x\n", cameraError);
         gotError = true;
     }
     else
     {
         CustomPrintln("Camera working!");
     } 
+
+    bool firstTimeSetup = true;
 
     while(1)
     {
@@ -137,28 +154,48 @@ void app_main(void)
 
             if(theFrame == NULL)
             {
-            CustomPrintln("Getting camera frame failed!");
+                CustomPrintln("Getting camera frame failed!");
             }
             else
             {
-            CustomPrintfNum("Captured a camera frame with a length of %u bytes\n", theFrame->len);
+                // only set this info up the first time we call the camera
+                if(firstTimeSetup)
+                {
+                    firstTimeSetup = false;
+                }
+                
+                CustomPrintf("Captured a camera frame with a length of %u bytes\n", theFrame->len);
 
-            for(uint8_t i = 0; i < theFrame->width; i++)
-            {
-                CustomPrintfNum("%d ", theFrame->buf[i]);
-            }
+                // for(uint8_t i = 0; i < theFrame->width; i++)
+                // {
+                //     CustomPrintf("%d ", theFrame->buf[i]);
+                // }
 
-            if(CustomSerialReadForReadiness())
-            {
-                CustomWriteSizeT(theFrame->width);
-                CustomWriteSizeT(theFrame->height);
-                CustomWrite(theFrame->buf);
-            }
+                if(CustomSerialReadForReadiness())
+                {
+                    // // set up the input tensor to contain the camera data. Ensure that since the camera is in uint8_5, we have
+                    // // to convert that actually
 
-            CustomPrintf("\n\n");
+                    // for (short i = 0; i < tensorForCamInput.size; i++)
+                    // {
+                    //     tensorForCamInput.data[i] = (int8_t) (theFrame->buf[i] - 128);
+                    // }
+                    // dl_model_run(&model, &tensorForCamInput, &modelResults);
 
-            // do this or else we'll use up all our memory in PSRAM
-            esp_camera_fb_return(theFrame);
+                    // int8_t unknownLogit0 = modelResults.data[0];
+                    // int8_t unknownLogit1 = modelResults.data[1];
+                    
+                    CustomWrite(theFrame->width);
+                    CustomWrite(theFrame->height);
+                    CustomWrite(theFrame->buf);
+                    // CustomWrite(unknownLogit0);
+                    // CustomWrite(unknownLogit1);
+                }
+
+                CustomPrintf("\n\n");
+
+                // do this or else we'll use up all our memory in PSRAM
+                esp_camera_fb_return(theFrame);
             }
 
         }
