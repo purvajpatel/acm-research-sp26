@@ -1,4 +1,5 @@
 pandas
-torch
+tensorflow
 numpy
 Pillow
+tensorflow.keras

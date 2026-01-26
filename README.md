@@ -8,7 +8,7 @@ First, you'll need to clone the repoistory and specifically this branch. How I d
 
 After doing so, you'll need to grab the dataset I'm using. I'm using the following: https://zenodo.org/records/7859211. From it, you'll need the metadata.zip download and also the training_mixed_set.zip file. unzip the training_mixed_set.zip into ModelCode, and retitle the new folder name "dataset". Make sure that within the dataset folder isn't an embedded folder but rather it contains all the images. Then unzip the metadata folder to ModelCode as well, make sure its name remains as "metadata". Again, also make sure inside isn't an embedded folder but rather all the csv files and stuff directly.
 
-You'll also have to install a couple python libraries. To do this, you can just type in the terminal "pip install -r requirements.txt", and it should install. If it doesn't, then type in the terminal "pip install pandas torch numpy transformers Pillow".
+You'll also have to install a couple python libraries. To do this, you can just type in the terminal "pip install -r requirements.txt", and it should install. If it doesn't, then type in the terminal "pip install pandas tensorflow numpy transformers Pillow tensorflow.keras".
 
 Now, run "ModelRunner.ipynb" in the ModelCode folder, and that should create the model.
 
