@@ -12,6 +12,6 @@ bool ReadForReadiness();
 
 void CustomWrite(size_t number);
 
-void CustomWrite(int8_t number);
+void CustomWrite(float number);
 
 void CustomWrite(uint8_t* buf);

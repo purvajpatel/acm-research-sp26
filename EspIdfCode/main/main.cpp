@@ -250,7 +250,15 @@ extern "C" void app_main(void)
 
                     // only need one number representing the first class's result
                     int8_t stillQuantizedOutputClass0 = interpreter.output(0)->data.int8[0];
-                    CustomPrint("MODEL", "The logit we got is %d\n", stillQuantizedOutputClass0);
+
+                    //unquantize it this way, get class 1 prob from it easily then
+                    float theScale = interpreter.output(0)->params.scale;
+                    int32_t theZeroPoint = interpreter.output(0)->params.zero_point;
+                    float class0Prob = (float) (stillQuantizedOutputClass0 - theZeroPoint) * theScale;
+                    float class1Prob = 1 - class0Prob;
+
+                    CustomPrint("MODEL", "The probability of class 0 is is %f\n", class0Prob);
+                    CustomPrint("MODEL", "The probability of class 1 is is %f\n", class1Prob);
 
 
                     // dl_model_run(&model, &tensorForCamInput, &modelResults);
@@ -261,7 +269,8 @@ extern "C" void app_main(void)
                     CustomWrite(theFrame->width);
                     CustomWrite(theFrame->height);
                     CustomWrite(theFrame->buf);
-                    CustomWrite(stillQuantizedOutputClass0);
+                    CustomWrite(class0Prob);
+                    CustomWrite(class1Prob);
                 }
 
                 CustomPrint("SPACING", "-------------");

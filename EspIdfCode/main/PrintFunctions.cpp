@@ -95,10 +95,10 @@ void CustomWrite(uint8_t* buf)
   }
 }
 
-void CustomWrite(int8_t number)
+void CustomWrite(float number)
 {
   if(sendingImage)
   {
-    uart_write_bytes(UART_NUM_0, (const char *)&number, 1);
+    uart_write_bytes(UART_NUM_0, (const char *)&number, 4);
   }
 }
