@@ -47,11 +47,11 @@
 // when in loop we have this so when there's an error, we can stop looping
 bool gotError = false;
 
-bool isSendingImage = false;
+bool isSendingImage = true;
 
 int BUFFER_SIZE = 10000;
 
-bool canInferenceWithoutSending = true;
+bool canInferenceWithoutSending = false;
 
 // saying extern on these lets us know that we should find them in another file
 extern const unsigned char modelWeights[];
