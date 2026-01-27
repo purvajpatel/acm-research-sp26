@@ -205,6 +205,9 @@ extern "C" void app_main(void)
         CustomPrint("CAMERA", "Camera working!");
     } 
 
+
+
+    // these are stuff to convert to and from int8 (which the model is stored as) to floats between 0 and 1
     float theInputScale = interpreter.input(0)->params.scale;
     int32_t theInputZeroPoint = interpreter.input(0)->params.zero_point;
 
@@ -246,9 +249,12 @@ extern "C" void app_main(void)
 
                     for (short i = 0; i < theFrame->len; i++)
                     {
+                        // normalize to between 0 and 1 first
                         float normalizedPixel = theFrame->buf[i] / 255.0;
+                        // use input scale and zero point to convert it to a int8_t (stored as int16 for now in case of overload)
                         int16_t actualNumber = (int16_t)(round(normalizedPixel / theInputScale)) + theInputZeroPoint;
                         
+                        // check if out of bounds, fix it if so
                         if (actualNumber > 127) actualNumber = 127;
                         if (actualNumber < -128) actualNumber = -128;
 
