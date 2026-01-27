@@ -1,4 +1,4 @@
-idf_component_register(SRCS "main.cpp" "PrintFunctions.cpp" "model_data.cc"
+idf_component_register(SRCS "main.cpp" "PrintFunctions.cpp" "model_data.cpp"
                     PRIV_REQUIRES spi_flash
                     INCLUDE_DIRS "."
                     REQUIRES esp32-camera esp-tflite-micro

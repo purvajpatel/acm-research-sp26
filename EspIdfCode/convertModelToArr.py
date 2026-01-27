@@ -7,7 +7,7 @@ ouputFile = Path("EspIdfCode/main/model_data.cc")
 
 with open(ouputFile, "w") as f:
     # begin writing the array
-    f.write("extern \"C\" const unsigned int8_t modelWeights[] = {\n")
+    f.write("extern \"C\" const unsigned char modelWeights[] = {\n")
     # go through all the bytes in the modle
     for i, b in enumerate(model):
         # when actually writing the weight, we want to store it as hex format and store 2 digits, like 0xa5, etc.

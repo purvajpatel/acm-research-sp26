@@ -46,20 +46,53 @@
 // when in loop we have this so when there's an error, we can stop looping
 bool gotError = false;
 
-bool isSendingImage = true;
+bool isSendingImage = false;
 
 int BUFFER_SIZE = 10000;
 
 // saying extern on these lets us know that we should find them in another file
-extern const unsigned int8_t modelWeights[];
+extern const unsigned char modelWeights[];
 extern const unsigned int modelLen;
 
+const int tensorMemorySize = 90000;
+uint8_t tensorMemoryArea[tensorMemorySize];
 
 extern "C" void app_main(void)
 {
-    tflite::Model* model = tflite::GetModel(modelWeights);
+    CustomPrint("OTHER", "Battle start!");
 
-    
+    const tflite::Model* model = tflite::GetModel(modelWeights);
+
+    // have to check the model version matches what the library expecsts
+    if (model->version() != TFLITE_SCHEMA_VERSION) {
+        CustomPrint("MODEL", "Model provided is schema version %d not equal to supported version %d.", model->version(), TFLITE_SCHEMA_VERSION);
+        gotError = true;
+    }
+
+
+    // So resolver is basically what operations exist, so we want to say that we add the fully connected oeprations,
+    // and see if that works fine
+    static tflite::MicroMutableOpResolver<1> operationsManager;
+    if (operationsManager.AddFullyConnected() != kTfLiteOk) {
+        gotError = true;
+        CustomPrint("MODEL", "Couldn't add the CNN operations for some reason.");
+    }
+
+    // this is actually the thing that will execute the model and run through it
+    static tflite::MicroInterpreter interpreter (model, operationsManager, tensorMemoryArea, tensorMemorySize);
+
+    // Allocate memory from the tensor_arena for the model's tensors.
+    TfLiteStatus checkAllocationSuccess = interpreter.AllocateTensors();
+    if (checkAllocationSuccess != kTfLiteOk) {
+        CustomPrint("MODEL", "AllocateTensors() failed");
+        gotError = true;
+    }
+
+
+    if(!gotError)
+    {
+        CustomPrint("MODEL", "thing worked out ok regarding the model!");
+    }
     
     
     setSendingImage(isSendingImage);
@@ -135,15 +168,13 @@ extern "C" void app_main(void)
     // if error, display it, otherwise say we gucci
     if (cameraError != ESP_OK) 
     {
-        CustomPrintf("Camera init failed with error 0x%x\n", cameraError);
+        CustomPrint("CAMERA", "Camera init failed with error 0x%x", cameraError);
         gotError = true;
     }
     else
     {
-        CustomPrintln("Camera working!");
+        CustomPrint("CAMERA", "Camera working!");
     } 
-
-    bool firstTimeSetup = true;
 
     while(1)
     {
@@ -154,17 +185,12 @@ extern "C" void app_main(void)
 
             if(theFrame == NULL)
             {
-                CustomPrintln("Getting camera frame failed!");
+                CustomPrint("CAMERA", "Getting camera frame failed!");
             }
             else
             {
-                // only set this info up the first time we call the camera
-                if(firstTimeSetup)
-                {
-                    firstTimeSetup = false;
-                }
                 
-                CustomPrintf("Captured a camera frame with a length of %u bytes\n", theFrame->len);
+                CustomPrint("CAMERA", "Captured a camera frame with a length of %u bytes", theFrame->len);
 
                 // for(uint8_t i = 0; i < theFrame->width; i++)
                 // {
@@ -192,7 +218,7 @@ extern "C" void app_main(void)
                     // CustomWrite(unknownLogit1);
                 }
 
-                CustomPrintf("\n\n");
+                CustomPrint("SPACING", "");
 
                 // do this or else we'll use up all our memory in PSRAM
                 esp_camera_fb_return(theFrame);
@@ -200,7 +226,7 @@ extern "C" void app_main(void)
 
         }
         // put your main code here, to run repeatedly:
-        CustomPrintln("HELP IN GAIA");
+        CustomPrint("OTHER", "HELP IN GAIA");
 
         // don't want to run the camera and print statement too many times, so run it every 2 secondss
         vTaskDelay(1000 / portTICK_PERIOD_MS);

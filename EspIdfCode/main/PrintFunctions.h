@@ -3,11 +3,7 @@
 #include <stdint.h>
 void setSendingImage(bool setter);
 
-void CustomPrintln(const char* data);
-
-void CustomPrintf(const char* beginningString, int theNumber);
-
-void CustomPrintf(const char* beginningString);
+void CustomPrint(const char* logType, const char* data, ...);
 
 bool CustomSerialReadForReadiness();
 

@@ -8,6 +8,7 @@
 #include "esp_flash.h"
 #include "esp_system.h"
 #include "driver/uart.h"
+#include "esp_log.h"
 
 bool sendingImage;
 uint8_t width = 0;
@@ -18,27 +19,17 @@ void setSendingImage(bool setter)
     sendingImage = setter;
 }
 
-void CustomPrintln(const char* data)
+void CustomPrint(const char* logType, const char* stringData, ...)
 {
   if(!sendingImage)
   {
-    printf("%s\n", data);
-  }
-}
+    //va list and args are a gift to god
+    va_list extraItems;
+    va_start(extraItems, stringData);
 
-void CustomPrintf(const char* beginningString, int theNumber)
-{
-  if(!sendingImage)
-  {
-    printf(beginningString, theNumber);
-  }
-}
+    esp_log_writev(ESP_LOG_INFO, logType, stringData, extraItems);
 
-void CustomPrintf(const char* beginningString)
-{
-  if(!sendingImage)
-  {
-    printf(beginningString);
+    va_end(extraItems);
   }
 }
 
