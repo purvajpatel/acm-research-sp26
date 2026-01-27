@@ -47,7 +47,7 @@
 // when in loop we have this so when there's an error, we can stop looping
 bool gotError = false;
 
-bool isSendingImage = true;
+bool isSendingImage = false;
 
 int BUFFER_SIZE = 10000;
 
@@ -205,6 +205,19 @@ extern "C" void app_main(void)
         CustomPrint("CAMERA", "Camera working!");
     } 
 
+    float theInputScale = interpreter.input(0)->params.scale;
+    int32_t theInputZeroPoint = interpreter.input(0)->params.zero_point;
+
+    CustomPrint("MODEL", "The input scaling factor is %f\n", theInputScale);
+    CustomPrint("MODEL", "The input zero point number is actually %d\n", theInputZeroPoint);
+
+    float theOutputScale = interpreter.output(0)->params.scale;
+    int32_t theOutputZeroPoint = interpreter.output(0)->params.zero_point;
+
+    CustomPrint("MODEL", "The output scaling factor is %f\n", theOutputScale);
+    CustomPrint("MODEL", "The output zero point number is actually %d\n", theOutputZeroPoint);
+
+
     while(1)
     {
         // if we didn't get error, run the code to fetch the camera
@@ -233,7 +246,14 @@ extern "C" void app_main(void)
 
                     for (short i = 0; i < theFrame->len; i++)
                     {
-                        interpreter.input(0)->data.int8[i] = (int8_t) (theFrame->buf[i] - 128);
+                        float normalizedPixel = theFrame->buf[i] / 255.0;
+                        int16_t actualNumber = (int16_t)(round(normalizedPixel / theInputScale)) + theInputZeroPoint;
+                        
+                        if (actualNumber > 127) actualNumber = 127;
+                        if (actualNumber < -128) actualNumber = -128;
+
+
+                        interpreter.input(0)->data.int8[i] = (int8_t) actualNumber;
                     }
 
                     // RUN INTERPRETER, PLEASE WORK
@@ -252,9 +272,7 @@ extern "C" void app_main(void)
                     int8_t stillQuantizedOutputClass0 = interpreter.output(0)->data.int8[0];
 
                     //unquantize it this way, get class 1 prob from it easily then
-                    float theScale = interpreter.output(0)->params.scale;
-                    int32_t theZeroPoint = interpreter.output(0)->params.zero_point;
-                    float class0Prob = (float) (stillQuantizedOutputClass0 - theZeroPoint) * theScale;
+                    float class0Prob = (float) (stillQuantizedOutputClass0 - theOutputZeroPoint) * theOutputScale;
                     float class1Prob = 1 - class0Prob;
 
                     CustomPrint("MODEL", "The probability of class 0 is is %f\n", class0Prob);
