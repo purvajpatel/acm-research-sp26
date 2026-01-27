@@ -1,0 +1,71 @@
+# LADDER Configuration File
+# Exact hyperparameters from the paper
+
+# Model Configuration
+models:
+  llama3.2-3b:
+    path: "meta-llama/Llama-3.2-3B-Instruct"
+    requires_auth: true
+    target_dataset: "undergraduate"
+    baseline_accuracy: 0.01
+    target_accuracy: 0.82
+  
+  qwen2.5-7b:
+    path: "Qwen/Qwen2.5-7B-Instruct"
+    requires_auth: false
+    target_dataset: "mit_bee"
+    baseline_accuracy: 0.15
+    target_accuracy: 0.73  # LADDER only
+  
+  deepseek-r1-7b:
+    path: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
+    requires_auth: false
+    target_dataset: "mit_bee"
+    baseline_accuracy: 0.15
+    target_accuracy: 0.90  # LADDER + TTRL
+
+# LADDER Training Configuration
+ladder:
+  max_depth: 5  # Maximum recursion depth
+  num_variants: 3  # Variants per level
+  batch_size: 32  # GRPO batch size
+  learning_rate: 1e-5  # GRPO learning rate
+  num_epochs: 10  # Training epochs
+  max_grad_norm: 1.0  # Gradient clipping
+
+# TTRL Configuration
+ttrl:
+  num_variants: 5  # Variants to generate
+  num_iterations: 3  # TTRL iterations
+  learning_rate: 1e-6  # Lighter than training
+
+# Verification Configuration
+verification:
+  tolerance: 1e-6  # Numerical tolerance
+  num_test_points: 100  # Points for numerical verification
+  test_domain: [-10, 10]  # Domain for testing
+  numerical_step: 1e-5  # Step size for numerical derivative
+
+# Generation Configuration
+generation:
+  max_length: 2048  # Maximum sequence length
+  temperature: 0.7  # Sampling temperature
+  top_p: 0.9  # Nucleus sampling
+  max_new_tokens: 512  # Maximum new tokens to generate
+
+# Dataset Configuration
+datasets:
+  undergraduate:
+    file: "data/undergraduate_problems.json"
+    num_problems: 50  # Approximate
+  
+  mit_bee:
+    file: "data/mit_bee_2025.json"
+    num_problems: 13  # Exact from paper
+
+# Paths
+paths:
+  data_dir: "data"
+  checkpoint_dir: "checkpoints"
+  log_dir: "logs"
+  results_dir: "results"
