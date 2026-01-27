@@ -15,6 +15,7 @@
 #include "esp_camera.h"
 #include "PrintFunctions.h"
 #include "driver/uart.h"
+#include "esp_heap_caps.h"
 
 #include "tensorflow/lite/micro/micro_mutable_op_resolver.h"
 #include "tensorflow/lite/micro/micro_interpreter.h"
@@ -54,49 +55,11 @@ int BUFFER_SIZE = 10000;
 extern const unsigned char modelWeights[];
 extern const unsigned int modelLen;
 
-const int tensorMemorySize = 90000;
+const int tensorMemorySize = 190000;
 uint8_t tensorMemoryArea[tensorMemorySize];
 
 extern "C" void app_main(void)
 {
-    CustomPrint("OTHER", "Battle start!");
-
-    const tflite::Model* model = tflite::GetModel(modelWeights);
-
-    // have to check the model version matches what the library expecsts
-    if (model->version() != TFLITE_SCHEMA_VERSION) {
-        CustomPrint("MODEL", "Model provided is schema version %d not equal to supported version %d.", model->version(), TFLITE_SCHEMA_VERSION);
-        gotError = true;
-    }
-
-
-    // So resolver is basically what operations exist, so we want to say that we add the fully connected oeprations,
-    // and see if that works fine
-    static tflite::MicroMutableOpResolver<1> operationsManager;
-    if (operationsManager.AddFullyConnected() != kTfLiteOk) {
-        gotError = true;
-        CustomPrint("MODEL", "Couldn't add the CNN operations for some reason.");
-    }
-
-    // this is actually the thing that will execute the model and run through it
-    static tflite::MicroInterpreter interpreter (model, operationsManager, tensorMemoryArea, tensorMemorySize);
-
-    // Allocate memory from the tensor_arena for the model's tensors.
-    TfLiteStatus checkAllocationSuccess = interpreter.AllocateTensors();
-    if (checkAllocationSuccess != kTfLiteOk) {
-        CustomPrint("MODEL", "AllocateTensors() failed");
-        gotError = true;
-    }
-
-
-    if(!gotError)
-    {
-        CustomPrint("MODEL", "thing worked out ok regarding the model!");
-    }
-    
-    
-    setSendingImage(isSendingImage);
-
     // set up uart communication
     uart_config_t uart_config = {
         .baud_rate = 115200,
@@ -115,6 +78,69 @@ extern "C" void app_main(void)
     // and install drivers like this? man esp idf is weird
     uart_driver_install(UART_NUM_0, BUFFER_SIZE, 0, 0, NULL, 0);
 
+    CustomPrint("OTHER", "Battle start!");
+
+    const tflite::Model* model = tflite::GetModel(modelWeights);
+
+    // have to check the model version matches what the library expecsts
+    if (model->version() != TFLITE_SCHEMA_VERSION) {
+        CustomPrint("MODEL", "Model provided is schema version %d not equal to supported version %d.\n", model->version(), TFLITE_SCHEMA_VERSION);
+        gotError = true;
+    }
+    else
+    {
+        CustomPrint("MODEL", "Schema version matches");
+    }
+
+
+    // So resolver is basically what operations exist, so we want to say that we add the fully connected oeprations,
+    // along with the conv 2d stuff, and see if that works fine
+    static tflite::MicroMutableOpResolver<5> operationsManager;
+    if (operationsManager.AddFullyConnected() != kTfLiteOk
+            || operationsManager.AddConv2D() != kTfLiteOk
+            || operationsManager.AddMaxPool2D() != kTfLiteOk
+            || operationsManager.AddMean() != kTfLiteOk
+            || operationsManager.AddLogistic() != kTfLiteOk)
+    {
+        gotError = true;
+        CustomPrint("MODEL", "Couldn't add the CNN operations for some reason.");
+    }
+    else
+    {
+        CustomPrint("MODEL", "Added op scucessfully (?)");
+    }
+
+    // this is actually the thing that will execute the model and run through it
+    static tflite::MicroInterpreter interpreter (model, operationsManager, tensorMemoryArea, tensorMemorySize);
+
+    // Allocate memory from the tensor_arena for the model's tensors.
+    TfLiteStatus checkAllocationSuccess = interpreter.AllocateTensors();
+    if (checkAllocationSuccess != kTfLiteOk) 
+    {
+        CustomPrint("MODEL", "AllocateTensors() failed");
+        gotError = true;
+    }
+    else
+    {
+        CustomPrint("MODEL", "Allocate tensors success");
+    }
+
+
+    if(!gotError)
+    {
+        CustomPrint("MODEL", "thing worked out ok regarding the model!");
+        
+        // i want to see how much memory is left too
+        size_t totalAvailable = heap_caps_get_total_size(MALLOC_CAP_8BIT);
+        size_t freeInternal = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+
+        float percentUsed = (float) (totalAvailable - freeInternal) / totalAvailable * 100.0;
+
+        CustomPrint("MEMORY", "Amount of used RAM is %.2f%%\n", percentUsed);
+    }
+    
+    
+    setSendingImage(isSendingImage);
 
 
     // set our clock frequency to this for how often we read from the camera
@@ -168,7 +194,7 @@ extern "C" void app_main(void)
     // if error, display it, otherwise say we gucci
     if (cameraError != ESP_OK) 
     {
-        CustomPrint("CAMERA", "Camera init failed with error 0x%x", cameraError);
+        CustomPrint("CAMERA", "Camera init failed with error 0x%x\n", cameraError);
         gotError = true;
     }
     else
@@ -190,7 +216,7 @@ extern "C" void app_main(void)
             else
             {
                 
-                CustomPrint("CAMERA", "Captured a camera frame with a length of %u bytes", theFrame->len);
+                CustomPrint("CAMERA", "Captured a camera frame with a length of %u bytes\n", theFrame->len);
 
                 // for(uint8_t i = 0; i < theFrame->width; i++)
                 // {
@@ -218,7 +244,7 @@ extern "C" void app_main(void)
                     // CustomWrite(unknownLogit1);
                 }
 
-                CustomPrint("SPACING", "");
+                CustomPrint("SPACING", "-------------");
 
                 // do this or else we'll use up all our memory in PSRAM
                 esp_camera_fb_return(theFrame);
@@ -230,6 +256,5 @@ extern "C" void app_main(void)
 
         // don't want to run the camera and print statement too many times, so run it every 2 secondss
         vTaskDelay(1000 / portTICK_PERIOD_MS);
-   
     }
 }

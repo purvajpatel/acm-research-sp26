@@ -9,6 +9,7 @@
 #include "esp_system.h"
 #include "driver/uart.h"
 #include "esp_log.h"
+#include <cstring>
 
 bool sendingImage;
 uint8_t width = 0;
@@ -23,13 +24,21 @@ void CustomPrint(const char* logType, const char* stringData, ...)
 {
   if(!sendingImage)
   {
-    //va list and args are a gift to god
-    va_list extraItems;
-    va_start(extraItems, stringData);
+    // check if there's no percentage sign, so no formatting needed
+    if(strchr(stringData, '%') == nullptr)
+    {
+      ESP_LOGI(logType, "%s", stringData);
+    }
+    else
+    {
+      //va list and args are a gift to god
+      va_list extraItems;
+      va_start(extraItems, stringData);
 
-    esp_log_writev(ESP_LOG_INFO, logType, stringData, extraItems);
+      esp_log_writev(ESP_LOG_INFO, logType, stringData, extraItems);
 
-    va_end(extraItems);
+      va_end(extraItems);
+    }
   }
 }
 
