@@ -1,9 +1,9 @@
 # so, to import a model to an esp, you need to basically import it as a a C array. what we're doing is taking the binary file and making it an array now like this
 
 from pathlib import Path
-model = Path("cnn_model_uint8.tflite").read_bytes()
+model = Path("alt_cnn_model_uint8.tflite").read_bytes()
 
-ouputFile = Path("EspIdfCode/main/model_data.cc")
+ouputFile = Path("EspIdfCode/main/model_data.cpp")
 
 with open(ouputFile, "w") as f:
     # begin writing the array
