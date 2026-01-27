@@ -47,9 +47,11 @@
 // when in loop we have this so when there's an error, we can stop looping
 bool gotError = false;
 
-bool isSendingImage = false;
+bool isSendingImage = true;
 
 int BUFFER_SIZE = 10000;
+
+bool canInferenceWithoutSending = true;
 
 // saying extern on these lets us know that we should find them in another file
 extern const unsigned char modelWeights[];
@@ -140,7 +142,8 @@ extern "C" void app_main(void)
     }
     
     
-    setSendingImage(isSendingImage);
+    SetSendingImage(isSendingImage);
+    SetCanInference(canInferenceWithoutSending);
 
 
     // set our clock frequency to this for how often we read from the camera
@@ -223,15 +226,33 @@ extern "C" void app_main(void)
                 //     CustomPrintf("%d ", theFrame->buf[i]);
                 // }
 
-                if(CustomSerialReadForReadiness())
+                if(ReadForReadiness())
                 {
-                    // // set up the input tensor to contain the camera data. Ensure that since the camera is in uint8_5, we have
-                    // // to convert that actually
+                    // set up the input tensor to contain the camera data. Ensure that since the camera is in uint8_5, we have
+                    // to convert that actually
 
-                    // for (short i = 0; i < tensorForCamInput.size; i++)
-                    // {
-                    //     tensorForCamInput.data[i] = (int8_t) (theFrame->buf[i] - 128);
-                    // }
+                    for (short i = 0; i < theFrame->len; i++)
+                    {
+                        interpreter.input(0)->data.int8[i] = (int8_t) (theFrame->buf[i] - 128);
+                    }
+
+                    // RUN INTERPRETER, PLEASE WORK
+                    TfLiteStatus inferenceResult = interpreter.Invoke();
+                    if (inferenceResult != kTfLiteOk) 
+                    {
+                        CustomPrint("MODEL", "Invoke failed! What!?!?");
+                        gotError = true;
+                    }
+                    else
+                    {
+                        CustomPrint("MODEL", "INVOCATION WORKED!!!! HALLELUJAH!!");
+                    }
+
+                    // only need one number representing the first class's result
+                    int8_t stillQuantizedOutputClass0 = interpreter.output(0)->data.int8[0];
+                    CustomPrint("MODEL", "The logit we got is %d\n", stillQuantizedOutputClass0);
+
+
                     // dl_model_run(&model, &tensorForCamInput, &modelResults);
 
                     // int8_t unknownLogit0 = modelResults.data[0];
@@ -240,8 +261,7 @@ extern "C" void app_main(void)
                     CustomWrite(theFrame->width);
                     CustomWrite(theFrame->height);
                     CustomWrite(theFrame->buf);
-                    // CustomWrite(unknownLogit0);
-                    // CustomWrite(unknownLogit1);
+                    CustomWrite(stillQuantizedOutputClass0);
                 }
 
                 CustomPrint("SPACING", "-------------");

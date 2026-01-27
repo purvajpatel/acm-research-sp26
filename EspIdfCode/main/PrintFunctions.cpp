@@ -12,12 +12,18 @@
 #include <cstring>
 
 bool sendingImage;
+bool inferenceWithoutSending;
 uint8_t width = 0;
 uint8_t height = 0;
 
-void setSendingImage(bool setter)
+void SetSendingImage(bool setter)
 {
     sendingImage = setter;
+}
+
+void SetCanInference(bool setter)
+{
+  inferenceWithoutSending = setter;
 }
 
 void CustomPrint(const char* logType, const char* stringData, ...)
@@ -42,8 +48,13 @@ void CustomPrint(const char* logType, const char* stringData, ...)
   }
 }
 
-bool CustomSerialReadForReadiness()
+bool ReadForReadiness()
 {
+  if(!sendingImage && inferenceWithoutSending)
+  {
+    return true;
+  }
+  
   size_t bufferLength = 0;
   uart_get_buffered_data_len(UART_NUM_0, &bufferLength);
   
@@ -59,9 +70,11 @@ bool CustomSerialReadForReadiness()
 
 void CustomWrite(size_t number)
 {
+  if(sendingImage)
+  {
     uint8_t convertedToOneByteNum = (uint8_t) number;
     uart_write_bytes(UART_NUM_0, (const char *)&convertedToOneByteNum, 1);
-  
+
     // Serial.write((uint8_t) number);
     if(width == 0)
     {
@@ -71,14 +84,21 @@ void CustomWrite(size_t number)
     {
       height = number;
     }
+  }
 }
 
 void CustomWrite(uint8_t* buf)
 {
+  if(sendingImage)
+  {
     uart_write_bytes(UART_NUM_0, (const char*) buf, width * height);
+  }
 }
 
 void CustomWrite(int8_t number)
 {
+  if(sendingImage)
+  {
     uart_write_bytes(UART_NUM_0, (const char *)&number, 1);
+  }
 }

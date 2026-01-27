@@ -1,11 +1,14 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-void setSendingImage(bool setter);
+
+void SetSendingImage(bool setter);
+
+void SetCanInference(bool setter);
 
 void CustomPrint(const char* logType, const char* data, ...);
 
-bool CustomSerialReadForReadiness();
+bool ReadForReadiness();
 
 void CustomWrite(size_t number);
 
